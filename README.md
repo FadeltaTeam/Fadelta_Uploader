@@ -1,6 +1,6 @@
 # ربات آپلودر فادلتا
 
-![ربات آپلودر فادلتا](https://img.shields.io/badge/Version-1.0-blue.svg)
+![ربات آپلودر فادلتا](https://img.shields.io/badge/Version-1.1-blue.svg)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-green.svg)
 ![Telegram Bot API](https://img.shields.io/badge/Telegram%20Bot%20API-Latest-orange.svg)
 ![MySQL](https://img.shields.io/badge/MySQL-5.7%2B-yellow.svg)
