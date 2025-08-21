@@ -102,3 +102,8 @@ https://api.telegram.org/botTOKEN/setwebhook?url=index.php_file_address
 
 [![مشاهده در گیت‌هاب](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/FadeltaTeam/Fadelta_Uploader)
 [![ورود به کانال](https://img.shields.io/badge/Telegram-Channel-orange?logo=telegram)](https://t.me/fadelta_source)
+
+
+## Stargazers over Time
+
+[![Stargazers over time](https://starchart.cc/MHSanaei/3x-ui.svg?variant=adaptive)](https://starchart.cc/MHSanaei/3x-ui)
