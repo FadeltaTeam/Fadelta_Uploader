@@ -104,5 +104,3 @@ https://api.telegram.org/botTOKEN/setwebhook?url=index.php_file_address
 [![ورود به کانال](https://img.shields.io/badge/Telegram-Channel-orange?logo=telegram)](https://t.me/fadelta_source)
 
 
-Stargazers over Time
-https://starchart.cc/FadeltaTeam/Fadelta_Uploader.svg?variant=adaptive
