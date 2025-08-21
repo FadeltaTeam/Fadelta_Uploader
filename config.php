@@ -1,17 +1,17 @@
 <?php
 // تنظیمات ربات
-define('BOT_TOKEN', '6689441624:AAFsVldHWqVPEggdxF9NJzOuuqnBJFGhYxM');
-define('BOT_USERNAME', 'fadelta_uploaderbot');
+define('BOT_TOKEN', 'Token'); // توکن ربات
+define('BOT_USERNAME', 'bot_username'); //یوزر نیم ربات بدون @
 define('API_URL', 'https://api.telegram.org/bot' . BOT_TOKEN . '/');
 
 // تنظیمات دیتابیس
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'fadeir_uploader');
-define('DB_USER', 'fadeir_uploader');
-define('DB_PASS', 'faraz1010Fa+++');
+define('DB_NAME', 'name'); // اسم دیتابیس
+define('DB_USER', 'username'); // یوزرنیم دیتابیس
+define('DB_PASS', 'password'); // پسورد دیتابیس
 
 // کانال اجباری
-define('REQUIRED_CHANNEL', '@fadelta_source');
+define('REQUIRED_CHANNEL', '@Channel_username');
 
 // اتصال به دیتابیس
 try {
@@ -75,4 +75,5 @@ function checkChannelMembership($user_id, $chat_id = null) {
     // در نسخه کامل باید از Telegram API برای بررسی عضویت استفاده کنید
     return true;
 }
+
 ?>
