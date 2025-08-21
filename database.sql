@@ -8,6 +8,9 @@ CREATE TABLE `admins` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+INSERT INTO `admins` (`id`, `user_id`, `username`, `full_name`, `upload_state`, `current_file`, `created_at`) VALUES
+(1, 1853272172, 'admin1', 'Admin One', NULL, NULL, '2025-08-20 20:24:09'),
+(2, 987654321, 'admin2', 'Admin Two', NULL, NULL, '2025-08-20 20:24:09');
 
 CREATE TABLE `channels` (
   `id` int NOT NULL,
@@ -17,6 +20,8 @@ CREATE TABLE `channels` (
   `is_required` tinyint(1) DEFAULT '1'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+INSERT INTO `channels` (`id`, `channel_id`, `channel_username`, `channel_title`, `is_required`) VALUES
+(1, -1001226659198, '@fadelta_source', 'کانال اصلی', 1);
 
 CREATE TABLE `files` (
   `id` int NOT NULL,
@@ -85,3 +90,4 @@ CREATE TABLE `user_states` (
   `current_file` varchar(255) DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
