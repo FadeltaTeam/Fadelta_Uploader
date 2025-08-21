@@ -97,7 +97,7 @@ https://api.telegram.org/botTOKEN/setwebhook?url=index.php_file_address
 
 ## لایسنس
 
-ربات آپلودر تلگرام - نسخه 1.0  
+ربات آپلودر تلگرام - نسخه 1.1  
 © 2025 - تمامی حقوق محفوظ است
 
 [![مشاهده در گیت‌هاب](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/FadeltaTeam/Fadelta_Uploader)
