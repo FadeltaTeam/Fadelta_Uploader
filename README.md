@@ -1,5 +1,3 @@
-# Fadelta_Uploader
-سورس آپلودر فادلتا
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
