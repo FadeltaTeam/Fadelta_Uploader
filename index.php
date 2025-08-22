@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+include 'cron.php';
 
 // دریافت داده‌های ورودی
 $input = file_get_contents('php://input');
@@ -23,6 +24,7 @@ function processMessage($message) {
     
     // ذخیره اطلاعات کاربر
     saveUser($message['from']);
+    checkAndDeleteExpiredMedia(); // بررسی و حذف مدیاهای منقضی شده
     
     // بررسی عضویت در کانال
     if (!checkChannelMembership($user_id, $chat_id)) {
@@ -70,6 +72,93 @@ function processMessage($message) {
         processUserMessage($chat_id, $message);
     }
 }
+
+// تابع نمایش تنظیمات حذف خودکار
+function showAutoDeleteSettings($chat_id, $message_id = null) {
+    $current_setting = getAutoDeleteSettings($chat_id);
+    
+    $keyboard = [
+        'inline_keyboard' => [
+            [
+                ['text' => '⏰ 1 دقیقه', 'callback_data' => 'set_delete_time_60'],
+                ['text' => '⏰ 5 دقیقه', 'callback_data' => 'set_delete_time_300']
+            ],
+            [
+                ['text' => '⏰ 10 دقیقه', 'callback_data' => 'set_delete_time_600'],
+                ['text' => '⏰ 30 دقیقه', 'callback_data' => 'set_delete_time_1800']
+            ],
+            [
+                ['text' => '⏰ 1 ساعت', 'callback_data' => 'set_delete_time_3600'],
+                ['text' => '⏰ 1 روز', 'callback_data' => 'set_delete_time_86400']
+            ],
+            [
+                ['text' => '❌ غیرفعال', 'callback_data' => 'set_delete_time_0'],
+                ['text' => '↩️ بازگشت', 'callback_data' => 'admin_panel']
+            ]
+        ]
+    ];
+    
+    $message = "⚙️ تنظیمات حذف خودکار مدیا\n\n";
+    $message .= "با استفاده از این قابلیت می‌توانید مدیاها را پس از زمان مشخص به صورت خودکار از چت کاربران حذف کنید.\n\n";
+    $message .= "تنظیمات فعلی: " . formatSeconds($current_setting) . "\n\n";
+    $message .= "لطفا زمان مورد نظر را انتخاب کنید:";
+    
+    if ($message_id) {
+        apiRequest('editMessageText', [
+            'chat_id' => $chat_id,
+            'message_id' => $message_id,
+            'text' => $message,
+            'reply_markup' => json_encode($keyboard)
+        ]);
+    } else {
+        apiRequest('sendMessage', [
+            'chat_id' => $chat_id,
+            'text' => $message,
+            'reply_markup' => json_encode($keyboard)
+        ]);
+    }
+}
+
+// تابع تنظیم زمان حذف
+function setAutoDeleteTime($chat_id, $time, $message_id) {
+    $time = intval($time);
+    
+    if (setAutoDeleteSettings($chat_id, $time)) {
+        $message = $time === 0 
+            ? "✅ حذف خودکار مدیا غیرفعال شد." 
+            : "✅ زمان حذف خودکار روی " . formatSeconds($time) . " تنظیم شد.\n\nاز این پس تمام مدیاهای ارسالی پس از این زمان حذف خواهند شد.";
+        
+        apiRequest('editMessageText', [
+            'chat_id' => $chat_id,
+            'message_id' => $message_id,
+            'text' => $message,
+            'reply_markup' => json_encode([
+                'inline_keyboard' => [
+                    [
+                        ['text' => '↩️ بازگشت به تنظیمات', 'callback_data' => 'auto_delete_settings']
+                    ]
+                ]
+            ])
+        ]);
+        
+        // به‌روزرسانی پنل ادمین برای نمایش وضعیت جدید
+        showAdminPanel($chat_id);
+    } else {
+        apiRequest('editMessageText', [
+            'chat_id' => $chat_id,
+            'message_id' => $message_id,
+            'text' => "❌ خطایی در ذخیره تنظیمات رخ داده است.",
+            'reply_markup' => json_encode([
+                'inline_keyboard' => [
+                    [
+                        ['text' => '↩️ بازگشت به تنظیمات', 'callback_data' => 'auto_delete_settings']
+                    ]
+                ]
+            ])
+        ]);
+    }
+}
+
 
 function processCallbackQuery($callback_query) {
     $user_id = $callback_query['from']['id'];
@@ -349,6 +438,9 @@ function continueUploadProcess($chat_id, $message, $state, $current_file) {
 }
 
 function showAdminPanel($chat_id) {
+    $current_setting = getAutoDeleteSettings($chat_id);
+    $current_text = formatSeconds($current_setting);
+    
     $keyboard = [
         'inline_keyboard' => [
             [
@@ -362,6 +454,9 @@ function showAdminPanel($chat_id) {
             ],
             [
                 ['text' => '📁 مدیریت فایل‌ها', 'callback_data' => 'manage_files']
+            ],
+            [
+                ['text' => '⏰ تنظیمات حذف خودکار (' . $current_text . ')', 'callback_data' => 'auto_delete_settings']
             ]
         ]
     ];
@@ -387,12 +482,19 @@ function processAdminCallback($chat_id, $data, $message_id, $callback_query_id =
         case 'manage_files':
             showFileManagement($chat_id);
             break;
+        case 'auto_delete_settings': // اضافه شده
+            showAutoDeleteSettings($chat_id, $message_id);
+            break;
         case 'admin_panel':
             showAdminPanel($chat_id);
             break;
         case strpos($data, 'add_rating_button_') === 0:
             $file_unique_id = substr($data, 18);
             addRatingButtonToMessage($chat_id, $file_unique_id, $message_id, $callback_query_id);
+            break;
+        case strpos($data, 'set_delete_time_') === 0: // اضافه شده
+            $time = substr($data, 16);
+            setAutoDeleteTime($chat_id, $time, $message_id);
             break;
         default:
             // پردازش سایر callback_dataها
@@ -661,6 +763,10 @@ function downloadFile($chat_id, $file_unique_id) {
             'caption' => $file['caption'] ?: ''
         ];
         
+        // دریافت تنظیمات حذف خودکار
+        $uploader_id = $file['uploaded_by'];
+        $delete_after = getAutoDeleteSettings($uploader_id);
+        
         switch ($file['type']) {
             case 'document':
                 $params['document'] = $file['file_id'];
@@ -706,6 +812,38 @@ function downloadFile($chat_id, $file_unique_id) {
         
         // بررسی موفقیت آمیز بودن ارسال فایل
         if (isset($result['ok']) && $result['ok']) {
+            $message_id = $result['result']['message_id'];
+            
+            // اگر حذف خودکار فعال است، message_id و delete_after را ذخیره کنید
+            if ($delete_after) {
+                applyAutoDeleteToFile($file['id'], $delete_after, $message_id);
+                
+                // اضافه کردن اطلاعات حذف خودکار به کپشن
+                $delete_info = "\n\n⏰ این مدیا پس از " . formatSeconds($delete_after) . " حذف خواهد شد.";
+                
+                // ویرایش پیام برای اضافه کردن اطلاعات حذف خودکار
+                $edit_params = [
+                    'chat_id' => $chat_id,
+                    'message_id' => $message_id,
+                    'caption' => ($params['caption'] ?: '') . $delete_info
+                ];
+                
+                switch ($file['type']) {
+                    case 'document':
+                        apiRequest('editMessageCaption', $edit_params);
+                        break;
+                    case 'photo':
+                        apiRequest('editMessageCaption', $edit_params);
+                        break;
+                    case 'video':
+                        apiRequest('editMessageCaption', $edit_params);
+                        break;
+                    case 'audio':
+                        apiRequest('editMessageCaption', $edit_params);
+                        break;
+                }
+            }
+            
             // ارسال پیام با دکمه نظردهی
             sendReviewPrompt($chat_id, $file_unique_id, $file);
         } else {

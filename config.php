@@ -222,14 +222,40 @@ function saveToUserLibrary($user_id, $file_id) {
 function sendReviewPrompt($chat_id, $file_unique_id, $file) {
     global $pdo;
     
-    // بررسی آیا کاربر قبلاً نظر داده
+    logMessage("Sending review prompt for user $chat_id, file {$file['id']}, unique_id $file_unique_id");
+    
+    // بررسی آیا کاربر قبلاً این فایل را دانلود کرده
     try {
         $stmt = $pdo->prepare("
-            SELECT COUNT(*) FROM reviews r 
-            WHERE r.user_id = ? AND r.file_id = ?
+            SELECT COUNT(*) FROM user_library 
+            WHERE user_id = ? AND file_id = ?
+        ");
+        $stmt->execute([$chat_id, $file['id']]);
+        $has_downloaded = $stmt->fetchColumn() > 0;
+        
+        logMessage("User $chat_id has downloaded file {$file['id']}: " . ($has_downloaded ? 'YES' : 'NO'));
+        
+        if (!$has_downloaded) {
+            // کاربر این فایل را دانلود نکرده
+            $message = "✅ فایل با موفقیت دانلود شد!\n\n";
+            $message .= "برای دانلود فایل‌های بیشتر، روی لینک‌های دیگر کلیک کنید.";
+            
+            apiRequest('sendMessage', [
+                'chat_id' => $chat_id,
+                'text' => $message
+            ]);
+            return;
+        }
+        
+        // بررسی آیا کاربر قبلاً نظر داده
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) FROM reviews 
+            WHERE user_id = ? AND file_id = ?
         ");
         $stmt->execute([$chat_id, $file['id']]);
         $has_reviewed = $stmt->fetchColumn() > 0;
+        
+        logMessage("User $chat_id has reviewed file {$file['id']}: " . ($has_reviewed ? 'YES' : 'NO'));
         
         if ($has_reviewed) {
             // کاربر قبلاً نظر داده
@@ -468,6 +494,133 @@ function cancelUserOperation($chat_id, $user_id) {
             'chat_id' => $chat_id,
             'text' => "⚠️ هیچ عملیات فعالی برای لغو وجود ندارد."
         ]);
+    }
+}
+
+// تابع برای بررسی و حذف مدیاهای قدیمی
+function checkAndDeleteExpiredMedia() {
+    global $pdo;
+    
+    try {
+        // پیدا کردن مدیاهایی که زمان حذف آنها فرا رسیده
+        $stmt = $pdo->prepare("
+            SELECT f.id, f.file_id, f.sent_message_id, f.delete_after, 
+                   f.uploaded_by, ul.user_id as recipient_id
+            FROM files f
+            JOIN user_library ul ON f.id = ul.file_id
+            WHERE f.delete_after IS NOT NULL 
+            AND f.sent_message_id IS NOT NULL
+            AND (UNIX_TIMESTAMP() - UNIX_TIMESTAMP(ul.last_downloaded)) >= f.delete_after
+        ");
+        $stmt->execute();
+        $expired_media = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($expired_media as $media) {
+            // حذف مدیا از چت کاربر
+            $delete_result = apiRequest('deleteMessage', [
+                'chat_id' => $media['recipient_id'],
+                'message_id' => $media['sent_message_id']
+            ]);
+            
+            if (isset($delete_result['ok']) && $delete_result['ok']) {
+                // به‌روزرسانی وضعیت برای جلوگیری از حذف مجدد
+                $stmt = $pdo->prepare("
+                    UPDATE files 
+                    SET sent_message_id = NULL, delete_after = NULL 
+                    WHERE id = ?
+                ");
+                $stmt->execute([$media['id']]);
+                
+                logMessage("Media deleted for user " . $media['recipient_id'] . ", file ID: " . $media['id']);
+            } else {
+                logMessage("Failed to delete media for user " . $media['recipient_id'] . ", error: " . 
+                          json_encode($delete_result));
+            }
+        }
+    } catch(PDOException $e) {
+        logMessage("Error in checkAndDeleteExpiredMedia: " . $e->getMessage());
+    }
+}
+
+// تابع برای دریافت تنظیمات حذف خودکار
+function getAutoDeleteSettings($user_id) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("SELECT delete_after FROM auto_delete_settings WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? $result['delete_after'] : null;
+    } catch(PDOException $e) {
+        logMessage("Error getting auto delete settings: " . $e->getMessage());
+        return null;
+    }
+}
+
+// تابع برای ذخیره تنظیمات حذف خودکار
+function setAutoDeleteSettings($user_id, $delete_after) {
+    global $pdo;
+    
+    try {
+        $delete_after = $delete_after === 0 ? null : $delete_after;
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO auto_delete_settings (user_id, delete_after) 
+            VALUES (?, ?) 
+            ON DUPLICATE KEY UPDATE delete_after = ?
+        ");
+        $stmt->execute([$user_id, $delete_after, $delete_after]);
+        
+        return true;
+    } catch(PDOException $e) {
+        logMessage("Error setting auto delete settings: " . $e->getMessage());
+        return false;
+    }
+}
+
+// تابع برای اعمال تنظیمات حذف روی فایل
+function applyAutoDeleteToFile($file_id, $delete_after, $message_id = null) {
+    global $pdo;
+    
+    try {
+        $delete_after = $delete_after === 0 ? null : $delete_after;
+        
+        if ($message_id) {
+            $stmt = $pdo->prepare("
+                UPDATE files 
+                SET delete_after = ?, sent_message_id = ? 
+                WHERE id = ?
+            ");
+            $stmt->execute([$delete_after, $message_id, $file_id]);
+        } else {
+            $stmt = $pdo->prepare("
+                UPDATE files 
+                SET delete_after = ? 
+                WHERE id = ?
+            ");
+            $stmt->execute([$delete_after, $file_id]);
+        }
+        
+        return true;
+    } catch(PDOException $e) {
+        logMessage("Error applying auto delete to file: " . $e->getMessage());
+        return false;
+    }
+}
+
+// تابع فرمت کردن ثانیه به متن قابل فهم
+function formatSeconds($seconds) {
+    if ($seconds === null || $seconds === 0) {
+        return "غیرفعال";
+    } elseif ($seconds < 60) {
+        return $seconds . " ثانیه";
+    } elseif ($seconds < 3600) {
+        return floor($seconds / 60) . " دقیقه";
+    } elseif ($seconds < 86400) {
+        return floor($seconds / 3600) . " ساعت";
+    } else {
+        return floor($seconds / 86400) . " روز";
     }
 }
 ?>
