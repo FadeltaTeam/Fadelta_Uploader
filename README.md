@@ -87,7 +87,7 @@ https://api.telegram.org/botTOKEN/setwebhook?url=index.php_file_address
 ``` 
 
 راهنما :
-hostuser : یوزرنیم هاستتون رو قرار بدین
+hostuser : یوزرنیم هاستتون رو قرار بدین و
 cron-file-address : آدرس فایل cron.php رو در public_html بزارین
 
 میتونین از پلتفرم های کرونجاب دیگه هم استفاده کنید
