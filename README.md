@@ -79,7 +79,7 @@ https://api.telegram.org/botTOKEN/setwebhook?url=index.php_file_address
 
 ### 5. تنظیم کرونجاب
 
-**روی فایل cron.php کرونجاب یک دقیقه ای تنظیم کنید**
+**روی فایل cron.php کرونجاب یک دقیقه ای (* * * * *) تنظیم کنید**
 
 **کد کرونجاب :** 
 ``` 
