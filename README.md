@@ -82,7 +82,9 @@ https://api.telegram.org/botTOKEN/setwebhook?url=index.php_file_address
 **روی فایل cron.php کرونجاب یک دقیقه ای تنظیم کنید**
 
 **کد کرونجاب :** 
-``` /usr/local/bin/php /home/hostuser/public_html/cron-file-address > /dev/null 2>&1 ``` 
+``` 
+/usr/local/bin/php /home/hostuser/public_html/cron-file-address > /dev/null 2>&1
+``` 
 
 راهنما :
 hostuser : یوزرنیم هاستتون رو قرار بدین
